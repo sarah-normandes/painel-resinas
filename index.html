@@ -42,6 +42,15 @@
     font-family:"Barlow Condensed",sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
     font-size:clamp(13px,1.6vh,18px);transition:all .15s}
   .resinas button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .gatilhos{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0;align-items:center}
+  .gatilhos .rot{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.1em;
+    font-size:clamp(10px,1.2vh,13px);color:var(--ink-dim);margin-right:4px}
+  .gatilhos button{background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);
+    padding:clamp(6px,.9vh,10px) clamp(12px,1.2vw,20px);border-radius:999px;cursor:pointer;
+    font-family:"Barlow Condensed",sans-serif;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+    font-size:clamp(12px,1.5vh,17px);transition:all .15s}
+  .gatilhos button.on{background:var(--brent);border-color:var(--brent);color:#fff}
+  .gatilhos button[data-k="gGas"].on{background:#3f7d9c;border-color:#3f7d9c}
   :root{--pvc:#7b5ea7} html[data-tema="escuro"]{--pvc:#a98fd0}
   .status{font-family:"IBM Plex Mono",monospace;font-size:clamp(10.5px,1.2vh,14px);color:var(--ink-dim);flex:none}
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--down);margin-right:6px;vertical-align:middle}
@@ -143,6 +152,7 @@
       <button id="btnFull">Tela cheia</button>
     </div>
   </div>
+  <div class="gatilhos" id="gatilhos"></div>
   <div class="resinas" id="resinas"></div>
   <div class="status" id="status"><span class="dot warn"></span>Carregando</div>
   <div class="kpis">
@@ -222,6 +232,15 @@ const BRENT_SEED=[
 ];
 /* agregado do setor: índice FRED WPU0662 (resinas termoplásticas, base 1982=100).
    Não é preço, é termômetro geral do mercado de plásticos. */
+/* Gás natural Henry Hub (FRED DHHNGSP, US$/MMBtu), gatilho específico do PVC.
+   O gás entra no PVC pela matéria-prima do eteno e pela energia da produção de cloro. */
+const GAS_SEED=[
+ ["2026-01-05",2.82],["2026-01-20",4.00],["2026-02-03",4.11],["2026-02-18",2.98],
+ ["2026-03-04",2.87],["2026-03-18",3.12],["2026-04-01",2.99],["2026-04-16",2.78],
+ ["2026-04-30",2.64],["2026-05-14",2.79],["2026-05-29",3.34],["2026-06-12",3.06],
+ ["2026-06-29",3.33],["2026-07-14",2.76],["2026-07-28",2.65],["2026-08-11",2.79],
+ ["2026-08-25",2.70],["2026-09-09",2.81],["2026-09-22",2.90]
+]
 const AGREGADO_SEED={"2025-10":260.4,"2025-11":258.0,"2025-12":253.9,"2026-01":253.8,"2026-02":258.0,"2026-03":268.5,"2026-04":286.0,"2026-05":300.2,"2026-06":299.1,"2026-07":295.0,"2026-08":293.5};
 const DOLAR_SEED=[
  ["2026-01-06",5.38],["2026-01-20",5.33],["2026-02-03",5.22],["2026-02-17",5.18],
@@ -249,7 +268,7 @@ function montarSemente(){
   }
   const agregado=Object.keys(AGREGADO_SEED).sort().map(m=>({mes:m,indice:AGREGADO_SEED[m]}));
   const uh=DOLAR_SEED[DOLAR_SEED.length-1][1];
-  DADOS={brent:BRENT_SEED.slice(),dolar:DOLAR_SEED.slice(),agregado,usdHoje:uh,resinas};
+  DADOS={brent:BRENT_SEED.slice(),gas:GAS_SEED.slice(),dolar:DOLAR_SEED.slice(),agregado,usdHoje:uh,resinas};
 }
 
 async function buscar(){
@@ -264,8 +283,21 @@ async function buscar(){
 
 function def(){return DADOS.resinas[ativa] || DADOS.resinas.pp;}
 
+const GATILHO={gBrent:{serie:"brent", nome:"Brent", unid:"US$/barril", casas:2, cor:"var(--brent)",
+    txt:"petróleo, matéria-prima de PP e PE e parte do PVC"},
+  gGas:{serie:"gas", nome:"Gás natural", unid:"US$/MMBtu", casas:2, cor:"#3f7d9c",
+    txt:"gás, energia da produção de cloro e insumo do eteno, gatilho-chave do PVC"}};
+const ehGatilho=()=>!!GATILHO[ativa];
+let resinaAnterior="pvc";  // resina sobreposta no gráfico do gatilho
+
 function render(){
   renderResinas();
+  if(ehGatilho()){ renderKpisGatilho(); renderTabelaGatilho(); renderChart();
+    document.getElementById("hResina").textContent=GATILHO[ativa].nome.toLowerCase();
+    const s=DADOS[GATILHO[ativa].serie]||[];
+    document.getElementById("tblMeta").textContent=s.length+" leituras";
+    return;
+  }
   if(ativa==="setor"){ renderKpisSetor(); renderTabelaSetor(); renderChart();
     document.getElementById("hResina").textContent="plásticos";
     const ag=DADOS.agregado||[];
@@ -277,8 +309,18 @@ function render(){
   document.getElementById("tblMeta").textContent=def().dados.length+" meses";
 }
 function renderResinas(){
+  // fileira de gatilhos preditivos
+  const gbox=document.getElementById("gatilhos");
+  const gats={gBrent:"Brent", gGas:"Gás natural"};
+  gbox.innerHTML='<span class="rot">Gatilhos</span>'+
+    ["gBrent","gGas"].map(k=>'<button data-k="'+k+'" class="'+(k===ativa?"on":"")+'">'+gats[k]+'</button>').join("");
+  gbox.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    if(!ehGatilho() && ativa!=="setor") resinaAnterior=ativa;
+    ativa=b.dataset.k; girarPausa=performance.now()+120000; render();
+  }));
+  // fileira de resinas
   const box=document.getElementById("resinas");
-  const nomes={setor:"Setor de plásticos", pvc:"PVC", pp:"Polipropileno", pe:"Polietileno"};
+  const nomes={pvc:"PVC", pp:"Polipropileno", pe:"Polietileno", setor:"Setor de plásticos"};
   box.innerHTML=["pvc","pp","pe","setor"].map(k=>'<button data-k="'+k+'" class="'+(k===ativa?"on":"")+'">'+nomes[k]+'</button>').join("");
   box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
     ativa=b.dataset.k;
@@ -288,6 +330,69 @@ function renderResinas(){
 }
 
 /* indicadores quando o setor está ativo: índice, não R$/t */
+function renderKpisGatilho(){
+  const g=GATILHO[ativa], s=DADOS[g.serie]||[];
+  const last=s[s.length-1], prev=s[s.length-2];
+  const semanaAtras=s.length>5?s[s.length-6]:s[0];
+  const vDia=prev?(last[1]/prev[1]-1)*100:null;
+  const vSem=semanaAtras?(last[1]/semanaAtras[1]-1)*100:null;
+  document.getElementById("kBrlLbl").textContent=g.nome+" hoje";
+  document.getElementById("kBrl").textContent=last?fmt(last[1],g.casas):"s/d";
+  document.getElementById("kBrlMeta").innerHTML=last?g.unid+" em "+brDate(last[0]).slice(0,5)+(prev?delta(last[1],prev[1]):""):"s/d";
+  document.getElementById("kUsd").textContent=vSem==null?"s/d":(vSem>=0?"+":"")+fmt(vSem,1)+"%";
+  document.getElementById("kUsdMeta").textContent="na última semana";
+  const r=DADOS.resinas[resinaAnterior]; const rd=r?r.dados[r.dados.length-1]:null;
+  document.getElementById("kBrent").textContent=rd?"R$ "+fmt(rd.brlT):"s/d";
+  document.getElementById("kBrentMeta").textContent=(r?r.nome:"resina")+", custo atual";
+  const u=DADOS.dolar[DADOS.dolar.length-1];
+  document.getElementById("kDolar").textContent=u?"R$ "+fmt(u[1],4):"s/d";
+  document.getElementById("kDolarMeta").textContent="dólar de referência";
+  aplicarDolarLive();
+}
+
+function renderTabelaGatilho(){
+  const g=GATILHO[ativa], s=[...(DADOS[g.serie]||[])].reverse().slice(0,20), tb=document.getElementById("tbody");
+  const thead=document.querySelector("#tbl thead tr");
+  if(thead) thead.innerHTML='<th>Data</th><th class="mark"><span>'+g.nome+'</span></th><th>Var.</th>';
+  tb.innerHTML=s.map((r,i)=>{const ant=s[i+1];const p=ant?(r[1]/ant[1]-1)*100:null;
+    return '<tr><td>'+brDate(r[0])+'</td><td>'+fmt(r[1],g.casas)+'</td><td class="var '+(p==null?"":(p>=0?"pos":"neg"))+'">'+
+      (p==null?"s/d":(p>=0?"+":"")+fmt(p,1)+"%")+'</td></tr>';}).join("");
+}
+
+function chartGatilhoSobreposto(box,W,H){
+  const g=GATILHO[ativa], b=DADOS[g.serie]||[];
+  const r=DADOS.resinas[resinaAnterior], rd=r?r.dados:[];
+  if(b.length<2){box.innerHTML='<div class="empty">Sem série do gatilho.</div>';return;}
+  const b0=b[0][1], bn=b.map(d=>[d[0], d[1]/b0*100]);
+  document.getElementById("chartLegend").innerHTML='<i style="background:'+g.cor+'"></i>'+g.nome+
+    ' &nbsp;&nbsp;<i style="background:var(--accent)"></i>'+(r?r.nome:"resina")+' &nbsp; (base 100, o gatilho antecede a resina)';
+  const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
+  const rn=rd.length?rd.map(d=>({mes:d.mes, idx:d.brlT/rd[0].brlT*100})):[];
+  const todos=[...bn.map(d=>d[1]),...rn.map(d=>d.idx)];
+  const mx=Math.max(...todos),mn=Math.min(...todos),pad=(mx-mn||1)*.12,hi=mx+pad,lo=mn-pad;
+  const d0=new Date(bn[0][0]).getTime(), d1=new Date(bn[bn.length-1][0]).getTime();
+  const xt=t=>ml+iw*(t-d0)/(d1-d0||1), y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
+  const gg=[]; eixos(gg,W,H,ml,mr,mt,mb,hi,lo,0);
+  gg.push('<polyline points="'+bn.map(d=>xt(new Date(d[0]).getTime())+","+y(d[1])).join(" ")+'" fill="none" stroke="'+g.cor+'" stroke-width="2" stroke-linejoin="round"/>');
+  if(rn.length){
+    gg.push('<polyline points="'+rn.map(d=>xt(new Date(d.mes+"-15").getTime())+","+y(d.idx)).join(" ")+'" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round"/>');
+    rn.forEach(d=>gg.push('<circle cx="'+xt(new Date(d.mes+"-15").getTime())+'" cy="'+y(d.idx)+'" r="3.2" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>'));
+  }
+  // rótulos de data
+  const passo=Math.ceil(bn.length/7);
+  bn.forEach((d,i)=>{if(i%passo&&i!==bn.length-1)return;
+    gg.push('<text x="'+xt(new Date(d[0]).getTime())+'" y="'+(mt+ih+16)+'" text-anchor="middle" fill="var(--ink-dim)" font-size="9.5" font-family="IBM Plex Mono">'+brDate(d[0]).slice(0,5)+'</text>');});
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+gg.join("")+'</svg>';
+  // insight de tendência
+  const last=b[b.length-1][1], base=b.length>9?b[b.length-10][1]:b[0][1];
+  const pct=(last/base-1)*100;
+  const tend=pct>3?"pressão de alta à frente":pct<-3?"alívio possível à frente":"estável";
+  const el=document.createElement("div");el.className="insight";
+  el.innerHTML="<b>"+g.nome+": tendência</b><span>"+(pct>=0?"+":"")+fmt(pct,1)+"% no período recente</span>"+
+    "<small>"+tend+" para "+(r?r.nome:"a resina")+" &middot; "+g.txt+"</small>";
+  box.appendChild(el);
+}
+
 function renderKpisSetor(){
   const ag=DADOS.agregado||[]; const last=ag[ag.length-1], prev=ag[ag.length-2], ano=ag.length>12?ag[ag.length-13]:ag[0];
   const vM=prev?(last.indice/prev.indice-1)*100:null;
@@ -346,9 +451,11 @@ function renderChart(){
   const rect=box.getBoundingClientRect();
   const W=Math.max(360,Math.round(rect.width)||660),H=Math.max(220,Math.round(rect.height)||320);
   sincronizarSeletor();
+  if(ehGatilho()) return chartGatilhoSobreposto(box,W,H);
   if(visao==="custo") return chartCusto(box,W,H);
   if(visao==="comp")  return chartComp(box,W,H);
   if(visao==="gatilho") return chartGatilho(box,W,H);
+  if(visao==="gas") return chartGas(box,W,H);
   if(visao==="setor") return chartSetor(box,W,H);
   return chartBrent(box,W,H);
 }
@@ -490,6 +597,36 @@ function chartGatilho(box,W,H){
   insightGatilho(box);
 }
 
+function chartGas(box,W,H){
+  // Gás natural Henry Hub (diário) e custo da resina (mensal), base 100, gatilho do PVC
+  const g_=DADOS.gas||[]; const r=def().dados;
+  if(g_.length<2||r.length<2){box.innerHTML='<div class="empty">Sem série de gás.</div>';return;}
+  const g0=g_[0][1], gn=g_.map(d=>[d[0], d[1]/g0*100]);
+  const r0=r[0].brlT, rn=r.map(d=>({mes:d.mes, idx:d.brlT/r0*100}));
+  document.getElementById("chartLegend").innerHTML='<i style="background:#5a8f6b"></i>Gás natural &nbsp;&nbsp;<i style="background:var(--pvc)"></i>'+def().nome+' &nbsp; (base 100, gás pesa no eteno e na energia do cloro)';
+  const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
+  const todos=[...gn.map(d=>d[1]),...rn.map(d=>d.idx)];
+  const mx=Math.max(...todos),mn=Math.min(...todos),pad=(mx-mn||1)*.12,hi=mx+pad,lo=mn-pad;
+  const d0=new Date(gn[0][0]).getTime(), d1=new Date(gn[gn.length-1][0]).getTime();
+  const xt=t=>ml+iw*(t-d0)/(d1-d0||1), y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
+  const gg=[]; eixos(gg,W,H,ml,mr,mt,mb,hi,lo,0);
+  gg.push('<polyline points="'+gn.map(d=>xt(new Date(d[0]).getTime())+","+y(d[1])).join(" ")+'" fill="none" stroke="#5a8f6b" stroke-width="2" stroke-linejoin="round"/>');
+  gg.push('<polyline points="'+rn.map(d=>xt(new Date(d.mes+"-15").getTime())+","+y(d.idx)).join(" ")+'" fill="none" stroke="var(--pvc)" stroke-width="2.6" stroke-linejoin="round"/>');
+  rn.forEach(d=>gg.push('<circle cx="'+xt(new Date(d.mes+"-15").getTime())+'" cy="'+y(d.idx)+'" r="3.2" fill="var(--panel)" stroke="var(--pvc)" stroke-width="2"/>'));
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+gg.join("")+'</svg>';
+  insightGas(box);
+}
+
+function insightGas(box){
+  const s=def().dados,last=s[s.length-1],base=s[Math.max(0,s.length-7)];
+  const pctR=(last.brlT/base.brlT-1)*100;
+  const g_=DADOS.gas||[],gl=g_[g_.length-1][1],g0=g_[Math.max(0,g_.length-9)][1];
+  const pctG=(gl/g0-1)*100;
+  const el=document.createElement("div");el.className="insight";
+  el.innerHTML="<b>"+def().nome+": R$ "+fmt(last.brlT)+"/t</b><span>Gás natural "+(pctG>=0?"+":"")+fmt(pctG,1)+"% no período</span><small>"+(pctG>4?"gás em alta, pressão sobre eteno e energia do PVC":pctG<-4?"gás em queda, possível alívio no custo do PVC":"gás estável")+"</small>";
+  box.appendChild(el);
+}
+
 function insightCusto(box){
   const s=def().dados,last=s[s.length-1],base=s[Math.max(0,s.length-7)];
   const pct=(last.brlT/base.brlT-1)*100;
@@ -511,7 +648,7 @@ function insightGatilho(box){
 
 let girarLigado=true,girarPausa=0;
 document.getElementById("btnGirar").onclick=function(){girarLigado=!girarLigado;this.textContent="Girar: "+(girarLigado?"ligado":"pausado");};
-const CICLO=[["pp","custo"],["pp","gatilho"],["pe","custo"],["pvc","custo"],["pp","comp"],["pp","brent"]];
+const CICLO=[["pp","custo"],["pp","gatilho"],["pe","custo"],["pvc","custo"],["pvc","gas"],["pp","comp"],["pp","brent"]];
 let cicloI=0;
 setInterval(()=>{const t=performance.now();if(!girarLigado||t<girarPausa)return;
   cicloI=(cicloI+1)%CICLO.length;ativa=CICLO[cicloI][0];visao=CICLO[cicloI][1];render();},20000);
