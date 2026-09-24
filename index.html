@@ -97,6 +97,8 @@
     transition:opacity .12s;z-index:9;white-space:pre;line-height:1.55;box-shadow:0 8px 20px rgba(20,25,35,.16)}
   .foot{color:var(--ink-dim);font-size:clamp(10px,1.1vh,13px);line-height:1.55;flex:none}
   .foot b{color:var(--ink)}
+  .foot a{color:var(--accent);text-decoration:none}
+  .foot a:hover{text-decoration:underline}
   @media (max-width:980px),(pointer:coarse){
     html,body{overflow:auto;height:auto}
     .wrap{height:auto;min-height:0;padding-bottom:32px}
@@ -113,7 +115,7 @@
   <div class="topbar">
     <div>
       <h1>Custo estimado de <em id="hResina">polipropileno</em></h1>
-      <div class="sub">Preço US$/t (referência Baird + trajetória ABIPLAST) convertido pelo câmbio, na mesma lógica do painel LME. Brent e dólar diários antecipam o movimento.</div>
+      <div class="sub">Preço US$/t (referência Baird + trajetória ABIPLAST) convertido pelo câmbio do período. Brent e dólar diários antecipam o movimento.</div>
     </div>
     <div class="controls">
       <button id="btnGirar" class="primary">Girar: ligado</button>
@@ -162,8 +164,16 @@
     </section>
   </div>
   <div class="foot">
-    <b>Como ler:</b> o custo de PP e PE em R$/t segue a lógica do painel LME (US$/t × câmbio), com o preço internacional ancorado no relatório Baird (mar/2026) e na trajetória de reajustes da ABIPLAST/EconoPlast — é <b>estimativa</b>, não cotação de compra. O Brent e o dólar são <b>diários e oficiais</b> (FRED/EIA) e funcionam como gatilho: alta do petróleo antecede reajuste de resina. Resina é mensal porque o mercado brasileiro reajusta em ciclos, não diariamente.
-    <br>Análise do time de Inteligência de Mercado · <b>Nova Casa Distribuidora</b>
+    <b>Como ler este painel.</b>
+    <br>O custo de PP e PE em reais por tonelada é calculado a partir do preço internacional em dólar por tonelada, multiplicado pelo câmbio do período.
+    <br>Esse preço internacional é uma estimativa, não uma cotação de compra. Ele parte de um valor de referência do relatório Baird de março de 2026 e acompanha a trajetória de reajustes divulgada pela ABIPLAST no boletim EconoPlast.
+    <br>O preço do petróleo Brent e o dólar são dados diários e oficiais, vindos da base do Federal Reserve (FRED) e da agência de energia dos Estados Unidos (EIA). Eles funcionam como gatilho, porque a alta do petróleo costuma vir antes do reajuste da resina no Brasil.
+    <br>O preço da resina aparece por mês, e não por dia, porque o mercado brasileiro reajusta em ciclos, não diariamente.
+    <br><br><b>Fontes.</b>
+    <br>Petróleo Brent, série diária: <a href="https://fred.stlouisfed.org/series/DCOILBRENTEU" target="_blank" rel="noopener">fred.stlouisfed.org/series/DCOILBRENTEU</a>
+    <br>Dólar (real por dólar), série diária: <a href="https://fred.stlouisfed.org/series/DEXBZUS" target="_blank" rel="noopener">fred.stlouisfed.org/series/DEXBZUS</a>
+    <br>Boletim EconoPlast, ABIPLAST: <a href="https://www.abiplast.org.br/publicacoes/econoplast/" target="_blank" rel="noopener">abiplast.org.br/publicacoes/econoplast</a>
+    <br><br>Análise do time de Inteligência de Mercado, <b>Nova Casa Distribuidora</b>.
   </div>
 </div>
 <div class="tip" id="tip"></div>
@@ -174,7 +184,7 @@ window.addEventListener("error",function(e){var el=document.getElementById("stat
 /* SEMENTE com dados reais coletados em set/2026.
    Brent diário (FRED DCOILBRENTEU, US$/barril) — amostra dos fechamentos.
    Dólar diário (FRED DEXBZUS, R$/US$).
-   Resinas: âncora Baird mar/26 + trajetória ABIPLAST, lógica LME. */
+   Resinas: âncora Baird mar/26 + trajetória ABIPLAST (preço USD/t × câmbio). */
 const LB_T=2204.62;
 const ANCORA={pp:0.62*LB_T, pe:0.67*LB_T};
 const TRAJ={
