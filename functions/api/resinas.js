@@ -7,12 +7,14 @@ const FRED = "https://api.stlouisfed.org/fred/series/observations";
 const LB_POR_T = 2204.62;
 
 // âncora real março/2026 (relatório Baird, US$/libra -> US$/t)
-const ANCORA_MAR = { pp: 0.62 * LB_POR_T, pe: 0.67 * LB_POR_T };
+const ANCORA_MAR = { pp: 0.62 * LB_POR_T, pe: 0.67 * LB_POR_T, pvc: 0.58 * LB_POR_T };
 // trajetória relativa (mar=1.00), dos percentuais oficiais ABIPLAST/EconoPlast
 const TRAJ = {
   pp: {"2026-01":0.82,"2026-02":0.86,"2026-03":1.00,"2026-04":1.28,"2026-05":1.42,"2026-06":1.40,"2026-07":1.38,"2026-08":1.39},
-  pe: {"2026-01":0.80,"2026-02":0.84,"2026-03":1.00,"2026-04":1.33,"2026-05":1.53,"2026-06":1.52,"2026-07":1.49,"2026-08":1.50}
+  pe: {"2026-01":0.80,"2026-02":0.84,"2026-03":1.00,"2026-04":1.33,"2026-05":1.53,"2026-06":1.52,"2026-07":1.49,"2026-08":1.50},
+  pvc:{"2026-01":0.84,"2026-02":0.88,"2026-03":1.00,"2026-04":1.45,"2026-05":1.62,"2026-06":1.58,"2026-07":1.55,"2026-08":1.56}
 };
+const NOME_RES = { pp:"Polipropileno", pe:"Polietileno", pvc:"PVC" };
 
 async function serie(id, chave, desde){
   const u = FRED+"?series_id="+id+"&api_key="+chave+"&file_type=json&observation_start="+desde+"&sort_order=asc";
@@ -47,13 +49,19 @@ export async function onRequest(context){
     const usd   = await serie("DEXBZUS",      chave, "2026-01-01");  // R$/US$ diário (Fed)
     const cam   = cambioMensal(usd);
     const usdHoje = usd.length ? usd[usd.length-1][1] : null;
+    // agregado do setor de plásticos (índice FRED, mensal)
+    let agregado = [];
+    try{
+      const ag = await serie("WPU0662", chave, "2024-01-01");
+      agregado = ag.map(([d,v])=>({mes:d.slice(0,7), indice:v}));
+    }catch(e){ agregado = []; }
 
     // resinas mensais em USD/t e BRL/t (lógica LME)
     const resinas = {};
-    for(const r of ["pp","pe"]){
+    for(const r of ["pp","pe","pvc"]){
       const meses = Object.keys(TRAJ[r]).sort();
       resinas[r] = {
-        nome: r==="pp" ? "Polipropileno" : "Polietileno",
+        nome: NOME_RES[r],
         dados: meses.map(m=>{
           const usdT = ANCORA_MAR[r]*TRAJ[r][m];
           const cambio = cam[m] || usdHoje;
@@ -68,6 +76,7 @@ export async function onRequest(context){
       atualizado: new Date().toISOString(),
       brent: brent.slice(-260),
       dolar: usd.slice(-260),
+      agregado,
       usdHoje,
       resinas
     }), { headers:{
