@@ -22,7 +22,7 @@
   html,body{min-height:100%;overflow:auto;-webkit-text-size-adjust:100%}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,Arial,sans-serif;
     font-size:clamp(13px,1.5vh,18px);-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
-  .wrap{max-width:2000px;height:100vh;min-height:680px;margin:0 auto;display:flex;flex-direction:column;
+  .wrap{max-width:2000px;height:100vh;min-height:600px;margin:0 auto;display:flex;flex-direction:column;
     gap:clamp(8px,1.1vh,15px);padding:clamp(12px,1.7vh,22px) clamp(14px,1.4vw,28px) clamp(10px,1.3vh,18px)}
   .topbar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;
     border-bottom:2px solid var(--accent);padding-bottom:clamp(6px,1vh,12px);flex:none}
@@ -57,13 +57,15 @@
     font-family:"IBM Plex Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pos{color:var(--up)} .neg{color:var(--down)}
   .grid{display:grid;grid-template-columns:minmax(360px,1fr) minmax(420px,1.2fr);gap:clamp(10px,.9vw,18px);
-    align-items:stretch;flex:1 1 auto;min-height:340px}
+    align-items:stretch;flex:1 1 auto;min-height:0}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
-    box-shadow:0 1px 2px rgba(20,25,35,.05);display:flex;flex-direction:column;min-height:300px}
+    box-shadow:0 1px 2px rgba(20,25,35,.05);display:flex;flex-direction:column;min-height:0}
   .card h2{font-family:"Barlow Condensed",sans-serif;font-size:clamp(15px,2vh,24px);letter-spacing:.06em;
     text-transform:uppercase;margin:0;padding:clamp(8px,1.1vh,15px) clamp(12px,1vw,20px);border-bottom:1px solid var(--line);
     display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:600;flex-wrap:wrap;flex:none}
   .card h2 span{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-dim);letter-spacing:0;text-transform:none}
+  .card h2 .h2tools{display:flex;gap:6px}
+  .card h2 select{padding:4px 8px;font-size:clamp(11px,1.3vh,15px);text-transform:none;letter-spacing:0;font-family:"IBM Plex Sans",sans-serif;border-radius:6px}
   .tablewrap{flex:1 1 auto;min-height:180px;overflow:auto;padding:0 10px 10px;background:var(--panel)}
   table{border-collapse:separate;border-spacing:0;width:100%;min-width:400px;font-variant-numeric:tabular-nums;
     border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px}
@@ -95,7 +97,7 @@
   .tip{position:fixed;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--accent);
     border-radius:8px;padding:9px 11px;font-family:"IBM Plex Mono",monospace;font-size:clamp(11.5px,1.4vh,16px);opacity:0;
     transition:opacity .12s;z-index:9;white-space:pre;line-height:1.55;box-shadow:0 8px 20px rgba(20,25,35,.16)}
-  .foot{color:var(--ink-dim);font-size:clamp(10px,1.1vh,13px);line-height:1.55;flex:none}
+  .foot{color:var(--ink-dim);font-size:clamp(9.5px,1vh,12.5px);line-height:1.35;flex:none}
   .foot b{color:var(--ink)}
   .foot a{color:var(--accent);text-decoration:none}
   .foot a:hover{text-decoration:underline}
@@ -108,6 +110,17 @@
     h1{font-size:24px}
   }
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  .popup{position:fixed;top:16px;right:16px;z-index:20;min-width:210px;max-width:80vw;
+    background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);
+    border-radius:10px;padding:12px 14px;box-shadow:0 10px 30px rgba(20,25,35,.22);
+    transform:translateX(120%);transition:transform .35s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+  .popup.show{transform:translateX(0)}
+  .popup.up{border-left-color:var(--up)} .popup.down{border-left-color:var(--down)}
+  .popup .t{font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;
+    letter-spacing:.06em;font-size:clamp(12px,1.5vh,17px);color:var(--ink)}
+  .popup .v{font-family:"IBM Plex Mono",monospace;font-size:clamp(16px,2.4vh,26px);font-weight:600;margin-top:3px}
+  .popup .s{font-size:clamp(10px,1.2vh,13px);color:var(--ink-dim);margin-top:2px;font-family:"IBM Plex Mono",monospace}
+  .popup .v.up{color:var(--up)} .popup .v.down{color:var(--down)}
 </style>
 </head>
 <body>
@@ -128,22 +141,22 @@
   <div class="kpis">
     <div class="kpi hero">
       <div class="lbl" id="kBrlLbl">Custo estimado</div>
-      <div class="val" id="kBrl">—</div>
+      <div class="val" id="kBrl">s/d</div>
       <div class="meta" id="kBrlMeta">R$ por tonelada</div>
     </div>
     <div class="kpi">
       <div class="lbl">Preço internacional</div>
-      <div class="val" id="kUsd">—</div>
+      <div class="val" id="kUsd">s/d</div>
       <div class="meta" id="kUsdMeta">US$ por tonelada</div>
     </div>
     <div class="kpi brent">
       <div class="lbl">Brent hoje (gatilho)</div>
-      <div class="val" id="kBrent">—</div>
+      <div class="val" id="kBrent">s/d</div>
       <div class="meta" id="kBrentMeta">US$ por barril</div>
     </div>
     <div class="kpi">
       <div class="lbl">Dólar hoje</div>
-      <div class="val" id="kDolar">—</div>
+      <div class="val" id="kDolar">s/d</div>
       <div class="meta" id="kDolarMeta">R$ / US$</div>
     </div>
   </div>
@@ -158,31 +171,30 @@
       </div>
     </section>
     <section class="card">
-      <h2>Brent diário <span id="chartMeta">gatilho antecipado</span></h2>
+      <h2>Análise
+        <span class="h2tools">
+          <select id="selVisao">
+            <option value="brent">Brent diário</option>
+            <option value="gatilho">Brent x resina</option>
+            <option value="custo">Custo estimado</option>
+            <option value="comp">PP x PE</option>
+          </select>
+        </span>
+      </h2>
       <div class="chartbox"><div id="chart"></div></div>
       <div class="legend" id="chartLegend"></div>
     </section>
   </div>
-  <div class="foot">
-    <b>Como ler este painel.</b>
-    <br>O custo de PP e PE em reais por tonelada é calculado a partir do preço internacional em dólar por tonelada, multiplicado pelo câmbio do período.
-    <br>Esse preço internacional é uma estimativa, não uma cotação de compra. Ele parte de um valor de referência do relatório Baird de março de 2026 e acompanha a trajetória de reajustes divulgada pela ABIPLAST no boletim EconoPlast.
-    <br>O preço do petróleo Brent e o dólar são dados diários e oficiais, vindos da base do Federal Reserve (FRED) e da agência de energia dos Estados Unidos (EIA). Eles funcionam como gatilho, porque a alta do petróleo costuma vir antes do reajuste da resina no Brasil.
-    <br>O preço da resina aparece por mês, e não por dia, porque o mercado brasileiro reajusta em ciclos, não diariamente.
-    <br><br><b>Fontes.</b>
-    <br>Petróleo Brent, série diária: <a href="https://fred.stlouisfed.org/series/DCOILBRENTEU" target="_blank" rel="noopener">fred.stlouisfed.org/series/DCOILBRENTEU</a>
-    <br>Dólar (real por dólar), série diária: <a href="https://fred.stlouisfed.org/series/DEXBZUS" target="_blank" rel="noopener">fred.stlouisfed.org/series/DEXBZUS</a>
-    <br>Boletim EconoPlast, ABIPLAST: <a href="https://www.abiplast.org.br/publicacoes/econoplast/" target="_blank" rel="noopener">abiplast.org.br/publicacoes/econoplast</a>
-    <br><br>Análise do time de Inteligência de Mercado, <b>Nova Casa Distribuidora</b>.
-  </div>
+  <div class="foot">O custo de PP e PE em reais por tonelada é o preço internacional em dólar por tonelada multiplicado pelo câmbio do período; é uma estimativa, não cotação de compra, ancorada no relatório Baird de março de 2026 e na trajetória de reajustes da ABIPLAST no boletim EconoPlast. O petróleo Brent e o dólar são diários e oficiais e servem de gatilho, pois a alta do petróleo costuma anteceder o reajuste da resina; a resina aparece por mês porque o mercado brasileiro reajusta em ciclos. Fontes: Brent em <a href="https://fred.stlouisfed.org/series/DCOILBRENTEU" target="_blank" rel="noopener">FRED/DCOILBRENTEU</a>, dólar em <a href="https://fred.stlouisfed.org/series/DEXBZUS" target="_blank" rel="noopener">FRED/DEXBZUS</a> e reajustes em <a href="https://www.abiplast.org.br/publicacoes/econoplast/" target="_blank" rel="noopener">ABIPLAST EconoPlast</a>. Inteligência de Mercado, Nova Casa Distribuidora.</div>
 </div>
 <div class="tip" id="tip"></div>
+<div class="popup" id="popup" role="status" aria-live="polite"></div>
 <script>
 window.addEventListener("error",function(e){var el=document.getElementById("status");
   if(el)el.innerHTML='<span class="dot warn"></span>Erro: '+(e.message||"?")+(e.lineno?" (linha "+e.lineno+")":"");});
 
 /* SEMENTE com dados reais coletados em set/2026.
-   Brent diário (FRED DCOILBRENTEU, US$/barril) — amostra dos fechamentos.
+   Brent diário (FRED DCOILBRENTEU, US$/barril) amostra dos fechamentos.
    Dólar diário (FRED DEXBZUS, R$/US$).
    Resinas: âncora Baird mar/26 + trajetória ABIPLAST (preço USD/t × câmbio). */
 const LB_T=2204.62;
@@ -210,7 +222,7 @@ const DOLAR_SEED=[
 
 const NOMES=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 let DADOS=null, ativa="pp";
-const fmt=(n,d=0)=> n==null||isNaN(n)?"—":n.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmt=(n,d=0)=> n==null||isNaN(n)?"s/d":n.toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const rotMes=m=>{const[a,x]=m.split("-");return NOMES[+x-1]+"/"+a.slice(2);};
 const brDate=iso=>iso.split("-").reverse().join("/");
 function setStatus(t,k){document.getElementById("status").innerHTML='<span class="dot '+(k||"")+'"></span>'+t;}
@@ -251,16 +263,16 @@ function renderResinas(){
 }
 function renderKpis(){
   const s=def().dados,last=s[s.length-1],prev=s[s.length-2];
-  document.getElementById("kBrlLbl").textContent="Custo estimado — "+def().nome;
-  document.getElementById("kBrl").textContent=last?"R$ "+fmt(last.brlT):"—";
-  document.getElementById("kBrlMeta").innerHTML=last?"R$/t em "+rotMes(last.mes)+(prev?delta(last.brlT,prev.brlT):""):"—";
-  document.getElementById("kUsd").textContent=last?"US$ "+fmt(last.usdT):"—";
+  document.getElementById("kBrlLbl").textContent="Custo estimado "+def().nome;
+  document.getElementById("kBrl").textContent=last?"R$ "+fmt(last.brlT):"s/d";
+  document.getElementById("kBrlMeta").innerHTML=last?"R$/t em "+rotMes(last.mes)+(prev?delta(last.brlT,prev.brlT):""):"s/d";
+  document.getElementById("kUsd").textContent=last?"US$ "+fmt(last.usdT):"s/d";
   document.getElementById("kUsdMeta").textContent="US$/t internacional";
   const b=DADOS.brent[DADOS.brent.length-1],b0=DADOS.brent[DADOS.brent.length-2];
-  document.getElementById("kBrent").textContent=b?"US$ "+fmt(b[1],2):"—";
+  document.getElementById("kBrent").textContent=b?"US$ "+fmt(b[1],2):"s/d";
   document.getElementById("kBrentMeta").innerHTML=b&&b0?"em "+brDate(b[0]).slice(0,5)+delta(b[1],b0[1]):"US$/barril";
   const u=DADOS.dolar[DADOS.dolar.length-1];
-  document.getElementById("kDolar").textContent=u?"R$ "+fmt(u[1],4):"—";
+  document.getElementById("kDolar").textContent=u?"R$ "+fmt(u[1],4):"s/d";
   document.getElementById("kDolarMeta").textContent=u?"em "+brDate(u[0]).slice(0,5):"R$/US$";
 }
 function delta(a,b){const p=(a/b-1)*100;return ' <span class="'+(p>=0?"pos":"neg")+'">'+(p>=0?"▲":"▼")+" "+fmt(Math.abs(p),1)+"%</span>";}
@@ -269,33 +281,55 @@ function renderTabela(){
   tb.innerHTML=s.map((r,i)=>{const ant=s[i+1];const p=ant?(r.brlT/ant.brlT-1)*100:null;
     return '<tr><td>'+rotMes(r.mes)+'</td><td>US$ '+fmt(r.usdT)+'</td><td>R$ '+fmt(r.cambio,2)+
       '</td><td>R$ '+fmt(r.brlT)+'</td><td class="var '+(p==null?"":(p>=0?"pos":"neg"))+'">'+
-      (p==null?"—":(p>=0?"+":"")+fmt(p,1)+"%")+'</td></tr>';}).join("");
+      (p==null?"s/d":(p>=0?"+":"")+fmt(p,1)+"%")+'</td></tr>';}).join("");
 }
+let visao="brent"; /* brent | custo | comp | gatilho */
+
 function renderChart(){
-  const box=document.getElementById("chart"),s=DADOS.brent;
-  document.getElementById("chartLegend").innerHTML=
-    '<i style="background:var(--brent)"></i>Brent US$/barril (diário, oficial) — gatilho que antecede reajustes de resina';
-  if(s.length<2){box.innerHTML='<div class="empty">Sem série.</div>';return;}
+  const box=document.getElementById("chart");
   const rect=box.getBoundingClientRect();
   const W=Math.max(360,Math.round(rect.width)||660),H=Math.max(220,Math.round(rect.height)||320);
+  sincronizarSeletor();
+  if(visao==="custo") return chartCusto(box,W,H);
+  if(visao==="comp")  return chartComp(box,W,H);
+  if(visao==="gatilho") return chartGatilho(box,W,H);
+  return chartBrent(box,W,H);
+}
+
+/* seletor de visão: reflete e controla a variável `visao` */
+(function(){
+  const sel=document.getElementById("selVisao");
+  if(sel){
+    sel.value=visao;
+    sel.addEventListener("change",()=>{visao=sel.value;girarPausa=performance.now()+120000;renderChart();});
+  }
+})();
+function sincronizarSeletor(){const sel=document.getElementById("selVisao");if(sel&&sel.value!==visao)sel.value=visao;}
+
+function eixos(g,W,H,ml,mr,mt,mb,hi,lo,casas){
+  const ih=H-mt-mb;
+  for(let k=0;k<=4;k++){const yy=mt+ih*k/4,val=hi-(hi-lo)*k/4;
+    g.push('<line x1="'+ml+'" y1="'+yy+'" x2="'+(W-mr)+'" y2="'+yy+'" stroke="var(--line)"/>'+
+      '<text x="'+(ml-8)+'" y="'+(yy+4)+'" text-anchor="end" fill="var(--ink-dim)" font-size="10" font-family="IBM Plex Mono">'+fmt(val,casas||0)+'</text>');}
+}
+
+function chartBrent(box,W,H){
+  const s=DADOS.brent;
+  document.getElementById("chartLegend").innerHTML='<i style="background:var(--brent)"></i>Brent US$/barril, diário e oficial. Gatilho que antecede reajustes de resina.';
+  if(s.length<2){box.innerHTML='<div class="empty">Sem série.</div>';return;}
   const ml=54,mr=18,mt=18,mb=46,iw=W-ml-mr,ih=H-mt-mb;
   const vals=s.map(d=>d[1]),mx=Math.max(...vals),mn=Math.min(...vals),pad=(mx-mn||1)*.18,hi=mx+pad,lo=mn-pad;
   const x=i=>ml+iw*i/(s.length-1),y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
-  let g="";
-  for(let k=0;k<=4;k++){const yy=mt+ih*k/4,val=hi-(hi-lo)*k/4;
-    g+='<line x1="'+ml+'" y1="'+yy+'" x2="'+(W-mr)+'" y2="'+yy+'" stroke="var(--line)"/>'+
-       '<text x="'+(ml-8)+'" y="'+(yy+4)+'" text-anchor="end" fill="var(--ink-dim)" font-size="10" font-family="IBM Plex Mono">'+fmt(val)+'</text>';}
+  const g=[]; eixos(g,W,H,ml,mr,mt,mb,hi,lo,0);
   const pts=s.map((d,i)=>x(i)+","+y(d[1]));
-  g+='<path d="M '+pts.join(" L ")+' L '+x(s.length-1)+','+(mt+ih)+' L '+ml+','+(mt+ih)+' Z" fill="var(--brent)" opacity=".10"/>';
-  g+='<polyline points="'+pts.join(" ")+'" fill="none" stroke="var(--brent)" stroke-width="2.4" stroke-linejoin="round"/>';
+  g.push('<path d="M '+pts.join(" L ")+' L '+x(s.length-1)+','+(mt+ih)+' L '+ml+','+(mt+ih)+' Z" fill="var(--brent)" opacity=".10"/>');
+  g.push('<polyline points="'+pts.join(" ")+'" fill="none" stroke="var(--brent)" stroke-width="2.4" stroke-linejoin="round"/>');
   const passo=Math.ceil(s.length/8);
   s.forEach((d,i)=>{if(i%passo&&i!==s.length-1)return;
-    g+='<text x="'+x(i)+'" y="'+(mt+ih+16)+'" text-anchor="middle" fill="var(--ink-dim)" font-size="9.5" font-family="IBM Plex Mono">'+brDate(d[0]).slice(0,5)+'</text>';});
-  g+='<line id="guia" x1="0" y1="'+mt+'" x2="0" y2="'+(mt+ih)+'" stroke="var(--brent)" stroke-dasharray="3 3" opacity="0"/>';
-  g+='<circle id="foco" r="5" fill="var(--brent)" opacity="0"/>';
-  g+='<rect id="area" x="'+ml+'" y="'+mt+'" width="'+iw+'" height="'+ih+'" fill="transparent" style="cursor:crosshair"/>';
-  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g+'</svg>';
-  insight(box);
+    g.push('<text x="'+x(i)+'" y="'+(mt+ih+16)+'" text-anchor="middle" fill="var(--ink-dim)" font-size="9.5" font-family="IBM Plex Mono">'+brDate(d[0]).slice(0,5)+'</text>');});
+  g.push('<line id="guia" x1="0" y1="'+mt+'" x2="0" y2="'+(mt+ih)+'" stroke="var(--brent)" stroke-dasharray="3 3" opacity="0"/><circle id="foco" r="5" fill="var(--brent)" opacity="0"/><rect id="area" x="'+ml+'" y="'+mt+'" width="'+iw+'" height="'+ih+'" fill="transparent" style="cursor:crosshair"/>');
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g.join("")+'</svg>';
+  insightGatilho(box);
   const svg=box.querySelector("svg"),tip=document.getElementById("tip"),guia=svg.querySelector("#guia"),foco=svg.querySelector("#foco");
   svg.querySelector("#area").addEventListener("mousemove",ev=>{
     const rc=svg.getBoundingClientRect(),px=(ev.clientX-rc.left)/rc.width*W;
@@ -306,25 +340,142 @@ function renderChart(){
     tip.style.left=Math.min(ev.clientX+16,innerWidth-180)+"px";tip.style.top=Math.min(ev.clientY+16,innerHeight-90)+"px";tip.style.opacity=1;});
   svg.querySelector("#area").addEventListener("mouseleave",()=>{tip.style.opacity=0;guia.setAttribute("opacity","0");foco.setAttribute("opacity","0");});
 }
-function insight(box){
+
+function chartCusto(box,W,H){
+  const s=def().dados;
+  document.getElementById("chartLegend").innerHTML='<i style="background:var(--accent)"></i>'+def().nome+', custo estimado em R$/t por mês. Máxima e mínima destacadas.';
+  if(s.length<2){box.innerHTML='<div class="empty">Sem série.</div>';return;}
+  const ml=60,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
+  const vals=s.map(d=>d.brlT),mx=Math.max(...vals),mn=Math.min(...vals),pad=(mx-mn||1)*.18,hi=mx+pad,lo=mn-pad;
+  const x=i=>ml+iw*i/(s.length-1),y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
+  const g=[]; eixos(g,W,H,ml,mr,mt,mb,hi,lo,0);
+  const pts=s.map((d,i)=>x(i)+","+y(d.brlT));
+  g.push('<path d="M '+pts.join(" L ")+' L '+x(s.length-1)+','+(mt+ih)+' L '+ml+','+(mt+ih)+' Z" fill="var(--accent)" opacity=".10"/>');
+  g.push('<polyline points="'+pts.join(" ")+'" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"/>');
+  const iMax=vals.indexOf(mx),iMin=vals.indexOf(mn);
+  [[iMax,"máx",-1],[iMin,"mín",1]].forEach(([i,t,dir])=>{const px=Math.max(ml+28,Math.min(W-mr-28,x(i)));
+    g.push('<circle cx="'+x(i)+'" cy="'+y(vals[i])+'" r="6" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/><text x="'+px+'" y="'+(y(vals[i])+dir*18)+'" text-anchor="middle" font-family="IBM Plex Mono" font-size="11" font-weight="600" fill="var(--ink)">'+fmt(vals[i])+'</text><text x="'+px+'" y="'+(y(vals[i])+dir*18+dir*12)+'" text-anchor="middle" font-size="10" fill="var(--ink-dim)">'+t+" "+rotMes(s[i].mes)+'</text>');});
+  const passo=Math.ceil(s.length/8);
+  s.forEach((d,i)=>{if(i%passo&&i!==s.length-1)return;
+    g.push('<text x="'+x(i)+'" y="'+(mt+ih+16)+'" text-anchor="middle" fill="var(--ink-dim)" font-size="9.5" font-family="IBM Plex Mono">'+rotMes(d.mes)+'</text>');});
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g.join("")+'</svg>';
+  insightCusto(box);
+}
+
+function chartComp(box,W,H){
+  // PP e PE em base 100 no primeiro mês
+  const cores={pp:"var(--accent)", pe:"var(--usd)"};
+  const series={};let refLen=0;
+  for(const k of ["pp","pe"]){const d=DADOS.resinas[k].dados;const base=d[0].brlT;
+    series[k]=d.map(p=>({mes:p.mes,idx:p.brlT/base*100}));refLen=Math.max(refLen,d.length);}
+  document.getElementById("chartLegend").innerHTML='<i style="background:var(--accent)"></i>Polipropileno &nbsp;&nbsp;<i style="background:var(--usd)"></i>Polietileno &nbsp; (base 100 no início, quem subiu mais)';
+  const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
+  const todos=[...series.pp,...series.pe].map(p=>p.idx);
+  const mx=Math.max(...todos),mn=Math.min(...todos),pad=(mx-mn||1)*.12,hi=mx+pad,lo=mn-pad;
+  const x=i=>ml+iw*i/(refLen-1),y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
+  const g=[]; eixos(g,W,H,ml,mr,mt,mb,hi,lo,0);
+  g.push('<line x1="'+ml+'" y1="'+y(100)+'" x2="'+(W-mr)+'" y2="'+y(100)+'" stroke="var(--ink-dim)" stroke-dasharray="2 4" opacity=".6"/>');
+  for(const k of ["pp","pe"]) g.push('<polyline points="'+series[k].map((p,i)=>x(i)+","+y(p.idx)).join(" ")+'" fill="none" stroke="'+cores[k]+'" stroke-width="2.4" stroke-linejoin="round"/>');
+  const passo=Math.ceil(refLen/8);
+  series.pp.forEach((p,i)=>{if(i%passo&&i!==refLen-1)return;
+    g.push('<text x="'+x(i)+'" y="'+(mt+ih+16)+'" text-anchor="middle" fill="var(--ink-dim)" font-size="9.5" font-family="IBM Plex Mono">'+rotMes(p.mes)+'</text>');});
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g.join("")+'</svg>';
+  const pp=series.pp[series.pp.length-1].idx, pe=series.pe[series.pe.length-1].idx;
+  const lider=pp>=pe?"Polipropileno":"Polietileno", lv=Math.max(pp,pe), ov=Math.min(pp,pe);
+  const el=document.createElement("div");el.className="insight";
+  el.innerHTML="<b>PP contra PE</b><span>"+lider+" subiu mais, +"+fmt(lv-100,1)+"% no período</span><small>o outro, +"+fmt(ov-100,1)+"% &nbsp; base 100 no início</small>";
+  box.appendChild(el);
+}
+
+function chartGatilho(box,W,H){
+  // Brent (diário) e custo da resina (mensal) na MESMA escala normalizada base 100
+  const b=DADOS.brent; const r=def().dados;
+  if(b.length<2||r.length<2){box.innerHTML='<div class="empty">Sem série.</div>';return;}
+  const b0=b[0][1], bn=b.map(d=>[d[0], d[1]/b0*100]);
+  const r0=r[0].brlT, rn=r.map(d=>({mes:d.mes, idx:d.brlT/r0*100}));
+  document.getElementById("chartLegend").innerHTML='<i style="background:var(--brent)"></i>Brent &nbsp;&nbsp;<i style="background:var(--accent)"></i>'+def().nome+' &nbsp; (ambos base 100, o petróleo puxa a resina)';
+  const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
+  const todos=[...bn.map(d=>d[1]),...rn.map(d=>d.idx)];
+  const mx=Math.max(...todos),mn=Math.min(...todos),pad=(mx-mn||1)*.12,hi=mx+pad,lo=mn-pad;
+  // eixo x por data: mapeia ambos ao intervalo de dias de 2026
+  const d0=new Date(bn[0][0]).getTime(), d1=new Date(bn[bn.length-1][0]).getTime();
+  const xt=t=>ml+iw*(t-d0)/(d1-d0||1), y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
+  const g=[]; eixos(g,W,H,ml,mr,mt,mb,hi,lo,0);
+  g.push('<polyline points="'+bn.map(d=>xt(new Date(d[0]).getTime())+","+y(d[1])).join(" ")+'" fill="none" stroke="var(--brent)" stroke-width="2" stroke-linejoin="round"/>');
+  g.push('<polyline points="'+rn.map(d=>xt(new Date(d.mes+"-15").getTime())+","+y(d.idx)).join(" ")+'" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round"/>');
+  rn.forEach(d=>g.push('<circle cx="'+xt(new Date(d.mes+"-15").getTime())+'" cy="'+y(d.idx)+'" r="3.2" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>'));
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g.join("")+'</svg>';
+  insightGatilho(box);
+}
+
+function insightCusto(box){
+  const s=def().dados,last=s[s.length-1],base=s[Math.max(0,s.length-7)];
+  const pct=(last.brlT/base.brlT-1)*100;
+  const vals=s.map(d=>d.brlT),mx=Math.max(...vals),doPico=(last.brlT/mx-1)*100;
+  const el=document.createElement("div");el.className="insight";
+  el.innerHTML="<b>"+def().nome+": R$ "+fmt(last.brlT)+"/t</b><span>"+(pct>=0?"+":"")+fmt(pct,1)+"% em 6 meses</span><small>"+(Math.abs(doPico)<0.6?"no topo do período":fmt(Math.abs(doPico),1)+"% abaixo do pico")+"</small>";
+  box.appendChild(el);
+}
+
+function insightGatilho(box){
   const s=def().dados,last=s[s.length-1],base=s[Math.max(0,s.length-7)];
   const pctR=(last.brlT/base.brlT-1)*100;
   const b=DADOS.brent,bl=b[b.length-1][1],b0=b[Math.max(0,b.length-9)][1];
   const pctB=(bl/b0-1)*100;
   const el=document.createElement("div");el.className="insight";
-  el.innerHTML="<b>"+def().nome+": R$ "+fmt(last.brlT)+"/t</b>"+
-    "<span>"+(pctR>=0?"+":"")+fmt(pctR,1)+"% em 6 meses</span>"+
-    "<small>Brent "+(pctB>=0?"+":"")+fmt(pctB,1)+"% no período — "+(pctB>3?"pressão de alta à frente":pctB<-3?"alívio possível":"estável")+"</small>";
+  el.innerHTML="<b>"+def().nome+": R$ "+fmt(last.brlT)+"/t</b><span>Brent "+(pctB>=0?"+":"")+fmt(pctB,1)+"% no período</span><small>"+(pctB>3?"petróleo em alta, pressão de reajuste à frente":pctB<-3?"petróleo em queda, possível alívio adiante":"petróleo estável, sem gatilho novo")+"</small>";
   box.appendChild(el);
 }
+
 let girarLigado=true,girarPausa=0;
 document.getElementById("btnGirar").onclick=function(){girarLigado=!girarLigado;this.textContent="Girar: "+(girarLigado?"ligado":"pausado");};
-setInterval(()=>{const t=performance.now();if(!girarLigado||t<girarPausa)return;ativa=ativa==="pp"?"pe":"pp";render();},20000);
+const CICLO=[["pp","custo"],["pp","gatilho"],["pe","custo"],["pe","gatilho"],["pp","comp"],["pp","brent"]];
+let cicloI=0;
+setInterval(()=>{const t=performance.now();if(!girarLigado||t<girarPausa)return;
+  cicloI=(cicloI+1)%CICLO.length;ativa=CICLO[cicloI][0];visao=CICLO[cicloI][1];render();},20000);
 function aplicarTema(t){document.documentElement.setAttribute("data-tema",t);
   const b=document.getElementById("btnTema");if(b)b.textContent=t==="escuro"?"Modo claro":"Modo escuro";renderChart();}
 document.getElementById("btnTema").onclick=()=>aplicarTema(document.documentElement.getAttribute("data-tema")==="escuro"?"claro":"escuro");
 document.getElementById("btnFull").onclick=()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();}catch(e){}};
 if(window.ResizeObserver){let rd=null;new ResizeObserver(()=>{clearTimeout(rd);rd=setTimeout(renderChart,150);}).observe(document.getElementById("chart"));}
+
+/* ------------------------------------------------------------------
+   Dólar quase ao vivo (AwesomeAPI) + pop-up quando sobe/cai além do limite.
+   Esta fonte é separada da FRED: serve para o alerta em tempo quase real.
+   ------------------------------------------------------------------ */
+const DOLAR_LIVE={valor:null, hora:null, ref:null};
+const LIMITE_PCT=0.3;         // dispara o pop-up a partir de 0,3% de variação
+const POPUP_MS=9000;
+
+function mostrarPopup(valor, pct){
+  const p=document.getElementById("popup"); if(!p) return;
+  const sobe=pct>=0, dir=sobe?"up":"down", seta=sobe?"▲":"▼";
+  p.className="popup show "+dir;
+  p.innerHTML='<div class="t">Dólar '+(sobe?"subiu":"caiu")+'</div>'+
+    '<div class="v '+dir+'">R$ '+fmt(valor,4)+'</div>'+
+    '<div class="s">'+seta+' '+fmt(Math.abs(pct),2)+'% desde a última leitura</div>';
+  clearTimeout(p._t); p._t=setTimeout(()=>{p.className="popup "+dir;}, POPUP_MS);
+}
+
+async function lerDolarLive(){
+  try{
+    const r=await fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL",{cache:"no-store"});
+    const j=await r.json(); const v=parseFloat(j.USDBRL.bid);
+    if(!(v>0)) return;
+    const antes=DOLAR_LIVE.valor;
+    DOLAR_LIVE.valor=v; DOLAR_LIVE.hora=j.USDBRL.create_date;
+    // atualiza o KPI de dólar com o valor ao vivo
+    const kd=document.getElementById("kDolar"), km=document.getElementById("kDolarMeta");
+    if(kd) kd.textContent="R$ "+fmt(v,4);
+    if(km) km.textContent="tempo real "+(DOLAR_LIVE.hora||"").slice(11,16);
+    if(antes){
+      const pct=(v/antes-1)*100;
+      if(Math.abs(pct)>=LIMITE_PCT) mostrarPopup(v, pct);
+    }
+  }catch(e){/* silencioso: se a API falhar, o painel segue com a FRED */}
+}
+lerDolarLive();
+setInterval(lerDolarLive, 15*60000);   // a cada 15 minutos
 
 montarSemente();render();
 setStatus("Dados de semente reais (Baird+ABIPLAST / Brent FRED). Buscando atualização.","warn");
