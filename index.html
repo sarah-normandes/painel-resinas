@@ -444,6 +444,12 @@ if(window.ResizeObserver){let rd=null;new ResizeObserver(()=>{clearTimeout(rd);r
    Esta fonte é separada da FRED: serve para o alerta em tempo quase real.
    ------------------------------------------------------------------ */
 const DOLAR_LIVE={valor:null, hora:null, ref:null};
+function aplicarDolarLive(){
+  if(DOLAR_LIVE.valor==null) return;
+  const kd=document.getElementById("kDolar"), km=document.getElementById("kDolarMeta");
+  if(kd) kd.textContent="R$ "+fmt(DOLAR_LIVE.valor,4);
+  if(km) km.textContent="tempo real "+(DOLAR_LIVE.hora||"").slice(11,16);
+}
 const LIMITE_PCT=0.3;         // dispara o pop-up a partir de 0,3% de variação
 const POPUP_MS=9000;
 
@@ -464,10 +470,7 @@ async function lerDolarLive(){
     if(!(v>0)) return;
     const antes=DOLAR_LIVE.valor;
     DOLAR_LIVE.valor=v; DOLAR_LIVE.hora=j.USDBRL.create_date;
-    // atualiza o KPI de dólar com o valor ao vivo
-    const kd=document.getElementById("kDolar"), km=document.getElementById("kDolarMeta");
-    if(kd) kd.textContent="R$ "+fmt(v,4);
-    if(km) km.textContent="tempo real "+(DOLAR_LIVE.hora||"").slice(11,16);
+    aplicarDolarLive();
     if(antes){
       const pct=(v/antes-1)*100;
       if(Math.abs(pct)>=LIMITE_PCT) mostrarPopup(v, pct);
