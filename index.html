@@ -42,6 +42,7 @@
     font-family:"Barlow Condensed",sans-serif;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
     font-size:clamp(13px,1.6vh,18px);transition:all .15s}
   .resinas button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  :root{--pvc:#7b5ea7} html[data-tema="escuro"]{--pvc:#a98fd0}
   .status{font-family:"IBM Plex Mono",monospace;font-size:clamp(10.5px,1.2vh,14px);color:var(--ink-dim);flex:none}
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--down);margin-right:6px;vertical-align:middle}
   .dot.warn{background:#d9a400}
@@ -183,7 +184,7 @@
             <option value="brent">Brent diário</option>
             <option value="gatilho">Brent x resina</option>
             <option value="custo">Custo estimado</option>
-            <option value="comp">PP x PE</option>
+            <option value="comp">Comparar resinas</option>
           </select>
         </span>
       </h2>
@@ -204,10 +205,11 @@ window.addEventListener("error",function(e){var el=document.getElementById("stat
    Dólar diário (FRED DEXBZUS, R$/US$).
    Resinas: âncora Baird mar/26 + trajetória ABIPLAST (preço USD/t × câmbio). */
 const LB_T=2204.62;
-const ANCORA={pp:0.62*LB_T, pe:0.67*LB_T};
+const ANCORA={pp:0.62*LB_T, pe:0.67*LB_T, pvc:0.58*LB_T};  // PVC: âncora estimada, faixa próxima ao PP
 const TRAJ={
   pp:{"2026-01":0.82,"2026-02":0.86,"2026-03":1.00,"2026-04":1.28,"2026-05":1.42,"2026-06":1.40,"2026-07":1.38,"2026-08":1.39},
-  pe:{"2026-01":0.80,"2026-02":0.84,"2026-03":1.00,"2026-04":1.33,"2026-05":1.53,"2026-06":1.52,"2026-07":1.49,"2026-08":1.50}
+  pe:{"2026-01":0.80,"2026-02":0.84,"2026-03":1.00,"2026-04":1.33,"2026-05":1.53,"2026-06":1.52,"2026-07":1.49,"2026-08":1.50},
+  pvc:{"2026-01":0.84,"2026-02":0.88,"2026-03":1.00,"2026-04":1.45,"2026-05":1.62,"2026-06":1.58,"2026-07":1.55,"2026-08":1.56}
 };
 const CAMBIO_MES={"2026-01":5.35,"2026-02":5.20,"2026-03":5.24,"2026-04":4.99,"2026-05":4.99,"2026-06":5.13,"2026-07":5.09,"2026-08":5.16};
 /* Brent diário real (amostra ~semanal dos fechamentos FRED de 2026) */
@@ -218,6 +220,9 @@ const BRENT_SEED=[
  ["2026-06-16",84.7],["2026-06-30",88.2],["2026-07-14",90.5],["2026-07-28",87.6],
  ["2026-08-11",89.3],["2026-08-25",92.8],["2026-09-08",96.4],["2026-09-22",101.6]
 ];
+/* agregado do setor: índice FRED WPU0662 (resinas termoplásticas, base 1982=100).
+   Não é preço, é termômetro geral do mercado de plásticos. */
+const AGREGADO_SEED={"2025-10":260.4,"2025-11":258.0,"2025-12":253.9,"2026-01":253.8,"2026-02":258.0,"2026-03":268.5,"2026-04":286.0,"2026-05":300.2,"2026-06":299.1,"2026-07":295.0,"2026-08":293.5};
 const DOLAR_SEED=[
  ["2026-01-06",5.38],["2026-01-20",5.33],["2026-02-03",5.22],["2026-02-17",5.18],
  ["2026-03-03",5.25],["2026-03-17",5.26],["2026-03-20",5.24],["2026-04-01",5.10],
@@ -233,16 +238,18 @@ const rotMes=m=>{const[a,x]=m.split("-");return NOMES[+x-1]+"/"+a.slice(2);};
 const brDate=iso=>iso.split("-").reverse().join("/");
 function setStatus(t,k){document.getElementById("status").innerHTML='<span class="dot '+(k||"")+'"></span>'+t;}
 
+const NOME_RESINA={pp:"Polipropileno", pe:"Polietileno", pvc:"PVC"};
 function montarSemente(){
   const resinas={};
-  for(const r of ["pp","pe"]){
+  for(const r of ["pp","pe","pvc"]){
     const meses=Object.keys(TRAJ[r]).sort();
-    resinas[r]={nome:r==="pp"?"Polipropileno":"Polietileno",
+    resinas[r]={nome:NOME_RESINA[r],
       dados:meses.map(m=>{const usdT=ANCORA[r]*TRAJ[r][m],cambio=CAMBIO_MES[m];
         return{mes:m,usdT:usdT,cambio:cambio,brlT:usdT*cambio};})};
   }
+  const agregado=Object.keys(AGREGADO_SEED).sort().map(m=>({mes:m,indice:AGREGADO_SEED[m]}));
   const uh=DOLAR_SEED[DOLAR_SEED.length-1][1];
-  DADOS={brent:BRENT_SEED.slice(),dolar:DOLAR_SEED.slice(),usdHoje:uh,resinas};
+  DADOS={brent:BRENT_SEED.slice(),dolar:DOLAR_SEED.slice(),agregado,usdHoje:uh,resinas};
 }
 
 async function buscar(){
@@ -255,17 +262,57 @@ async function buscar(){
   }catch(e){return null;}
 }
 
-function def(){return DADOS.resinas[ativa];}
+function def(){return DADOS.resinas[ativa] || DADOS.resinas.pp;}
 
 function render(){
-  renderResinas();renderKpis();renderTabela();renderChart();
+  renderResinas();
+  if(ativa==="setor"){ renderKpisSetor(); renderTabelaSetor(); renderChart();
+    document.getElementById("hResina").textContent="plásticos";
+    const ag=DADOS.agregado||[];
+    document.getElementById("tblMeta").textContent=ag.length+" meses";
+    return;
+  }
+  renderKpis();renderTabela();renderChart();
   document.getElementById("hResina").textContent=def().nome.toLowerCase();
   document.getElementById("tblMeta").textContent=def().dados.length+" meses";
 }
 function renderResinas(){
   const box=document.getElementById("resinas");
-  box.innerHTML=["pp","pe"].map(k=>'<button data-k="'+k+'" class="'+(k===ativa?"on":"")+'">'+DADOS.resinas[k].nome+'</button>').join("");
-  box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ativa=b.dataset.k;girarPausa=performance.now()+120000;render();}));
+  const nomes={setor:"Setor de plásticos", pvc:"PVC", pp:"Polipropileno", pe:"Polietileno"};
+  box.innerHTML=["pvc","pp","pe","setor"].map(k=>'<button data-k="'+k+'" class="'+(k===ativa?"on":"")+'">'+nomes[k]+'</button>').join("");
+  box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    ativa=b.dataset.k;
+    if(ativa==="setor") visao="setor"; else if(visao==="setor") visao="custo";
+    girarPausa=performance.now()+120000;render();
+  }));
+}
+
+/* indicadores quando o setor está ativo: índice, não R$/t */
+function renderKpisSetor(){
+  const ag=DADOS.agregado||[]; const last=ag[ag.length-1], prev=ag[ag.length-2], ano=ag.length>12?ag[ag.length-13]:ag[0];
+  const vM=prev?(last.indice/prev.indice-1)*100:null;
+  const vA=ano?(last.indice/ano.indice-1)*100:null;
+  document.getElementById("kBrlLbl").textContent="Índice do setor de plásticos";
+  document.getElementById("kBrl").textContent=last?fmt(last.indice,1):"s/d";
+  document.getElementById("kBrlMeta").innerHTML=last?"base 1982=100, "+rotMes(last.mes):"s/d";
+  document.getElementById("kUsd").textContent=vM==null?"s/d":(vM>=0?"+":"")+fmt(vM,1)+"%";
+  document.getElementById("kUsdMeta").textContent="variação no mês";
+  document.getElementById("kBrent").textContent=vA==null?"s/d":(vA>=0?"+":"")+fmt(vA,1)+"%";
+  document.getElementById("kBrentMeta").textContent="variação em 12 meses";
+  const u=DADOS.dolar[DADOS.dolar.length-1];
+  document.getElementById("kDolar").textContent=u?"R$ "+fmt(u[1],4):"s/d";
+  document.getElementById("kDolarMeta").textContent="dólar de referência";
+  aplicarDolarLive();
+}
+
+function renderTabelaSetor(){
+  const ag=[...(DADOS.agregado||[])].reverse(), tb=document.getElementById("tbody");
+  // cabeçalho da tabela muda para índice
+  const thead=document.querySelector("#tbl thead tr");
+  if(thead) thead.innerHTML='<th>Mês</th><th class="mark"><span>Índice</span></th><th>Var. mês</th>';
+  tb.innerHTML=ag.map((r,i)=>{const ant=ag[i+1];const p=ant?(r.indice/ant.indice-1)*100:null;
+    return '<tr><td>'+rotMes(r.mes)+'</td><td>'+fmt(r.indice,1)+'</td><td class="var '+(p==null?"":(p>=0?"pos":"neg"))+'">'+
+      (p==null?"s/d":(p>=0?"+":"")+fmt(p,1)+"%")+'</td></tr>';}).join("");
 }
 function renderKpis(){
   const s=def().dados,last=s[s.length-1],prev=s[s.length-2];
@@ -284,6 +331,8 @@ function renderKpis(){
 }
 function delta(a,b){const p=(a/b-1)*100;return ' <span class="'+(p>=0?"pos":"neg")+'">'+(p>=0?"▲":"▼")+" "+fmt(Math.abs(p),1)+"%</span>";}
 function renderTabela(){
+  const thead=document.querySelector("#tbl thead tr");
+  if(thead) thead.innerHTML='<th>Mês</th><th class="mark"><span>US$/t</span></th><th>Câmbio</th><th>R$/t</th><th>Var.</th>';
   const s=[...def().dados].reverse(),tb=document.getElementById("tbody");
   tb.innerHTML=s.map((r,i)=>{const ant=s[i+1];const p=ant?(r.brlT/ant.brlT-1)*100:null;
     return '<tr><td>'+rotMes(r.mes)+'</td><td>US$ '+fmt(r.usdT)+'</td><td>R$ '+fmt(r.cambio,2)+
@@ -300,6 +349,7 @@ function renderChart(){
   if(visao==="custo") return chartCusto(box,W,H);
   if(visao==="comp")  return chartComp(box,W,H);
   if(visao==="gatilho") return chartGatilho(box,W,H);
+  if(visao==="setor") return chartSetor(box,W,H);
   return chartBrent(box,W,H);
 }
 
@@ -370,27 +420,52 @@ function chartCusto(box,W,H){
 }
 
 function chartComp(box,W,H){
-  // PP e PE em base 100 no primeiro mês
-  const cores={pp:"var(--accent)", pe:"var(--usd)"};
+  // PP, PE e PVC em base 100 no primeiro mês
+  const cores={pp:"var(--accent)", pe:"var(--usd)", pvc:"var(--pvc)"};
   const series={};let refLen=0;
-  for(const k of ["pp","pe"]){const d=DADOS.resinas[k].dados;const base=d[0].brlT;
+  for(const k of ["pp","pe","pvc"]){const d=DADOS.resinas[k].dados;const base=d[0].brlT;
     series[k]=d.map(p=>({mes:p.mes,idx:p.brlT/base*100}));refLen=Math.max(refLen,d.length);}
-  document.getElementById("chartLegend").innerHTML='<i style="background:var(--accent)"></i>Polipropileno &nbsp;&nbsp;<i style="background:var(--usd)"></i>Polietileno &nbsp; (base 100 no início, quem subiu mais)';
+  document.getElementById("chartLegend").innerHTML='<i style="background:var(--accent)"></i>PP &nbsp;<i style="background:var(--usd)"></i>PE &nbsp;<i style="background:var(--pvc)"></i>PVC &nbsp; (base 100 no início, quem subiu mais)';
   const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
-  const todos=[...series.pp,...series.pe].map(p=>p.idx);
+  const todos=[...series.pp,...series.pe,...series.pvc].map(p=>p.idx);
   const mx=Math.max(...todos),mn=Math.min(...todos),pad=(mx-mn||1)*.12,hi=mx+pad,lo=mn-pad;
   const x=i=>ml+iw*i/(refLen-1),y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
   const g=[]; eixos(g,W,H,ml,mr,mt,mb,hi,lo,0);
   g.push('<line x1="'+ml+'" y1="'+y(100)+'" x2="'+(W-mr)+'" y2="'+y(100)+'" stroke="var(--ink-dim)" stroke-dasharray="2 4" opacity=".6"/>');
-  for(const k of ["pp","pe"]) g.push('<polyline points="'+series[k].map((p,i)=>x(i)+","+y(p.idx)).join(" ")+'" fill="none" stroke="'+cores[k]+'" stroke-width="2.4" stroke-linejoin="round"/>');
+  for(const k of ["pp","pe","pvc"]) g.push('<polyline points="'+series[k].map((p,i)=>x(i)+","+y(p.idx)).join(" ")+'" fill="none" stroke="'+cores[k]+'" stroke-width="2.4" stroke-linejoin="round"/>');
   const passo=Math.ceil(refLen/8);
   series.pp.forEach((p,i)=>{if(i%passo&&i!==refLen-1)return;
     g.push('<text x="'+x(i)+'" y="'+(mt+ih+16)+'" text-anchor="middle" fill="var(--ink-dim)" font-size="9.5" font-family="IBM Plex Mono">'+rotMes(p.mes)+'</text>');});
   box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g.join("")+'</svg>';
-  const pp=series.pp[series.pp.length-1].idx, pe=series.pe[series.pe.length-1].idx;
-  const lider=pp>=pe?"Polipropileno":"Polietileno", lv=Math.max(pp,pe), ov=Math.min(pp,pe);
+  const fin={pp:series.pp[series.pp.length-1].idx, pe:series.pe[series.pe.length-1].idx, pvc:series.pvc[series.pvc.length-1].idx};
+  const ordenado=Object.entries(fin).sort((a,b)=>b[1]-a[1]);
+  const rot={pp:"PP",pe:"PE",pvc:"PVC"};
+  const lider=rot[ordenado[0][0]];
   const el=document.createElement("div");el.className="insight";
-  el.innerHTML="<b>PP contra PE</b><span>"+lider+" subiu mais, +"+fmt(lv-100,1)+"% no período</span><small>o outro, +"+fmt(ov-100,1)+"% &nbsp; base 100 no início</small>";
+  el.innerHTML="<b>Quem subiu mais</b><span>"+lider+" lidera, +"+fmt(ordenado[0][1]-100,1)+"% no período</span><small>"+
+    rot[ordenado[1][0]]+" +"+fmt(ordenado[1][1]-100,1)+"%, "+rot[ordenado[2][0]]+" +"+fmt(ordenado[2][1]-100,1)+"% &nbsp; base 100 no início</small>";
+  box.appendChild(el);
+}
+
+function chartSetor(box,W,H){
+  // agregado FRED: índice do setor de plásticos (termômetro geral)
+  const s=DADOS.agregado||[];
+  document.getElementById("chartLegend").innerHTML='<i style="background:#5a8f6b"></i>Índice do setor de plásticos (FRED, resinas termoplásticas, base 1982=100)';
+  if(s.length<2){box.innerHTML='<div class="empty">Sem série do setor.</div>';return;}
+  const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
+  const vals=s.map(d=>d.indice),mx=Math.max(...vals),mn=Math.min(...vals),pad=(mx-mn||1)*.18,hi=mx+pad,lo=mn-pad;
+  const x=i=>ml+iw*i/(s.length-1),y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
+  const g=[]; eixos(g,W,H,ml,mr,mt,mb,hi,lo,0);
+  const pts=s.map((d,i)=>x(i)+","+y(d.indice));
+  g.push('<path d="M '+pts.join(" L ")+' L '+x(s.length-1)+","+(mt+ih)+" L "+ml+","+(mt+ih)+' Z" fill="#5a8f6b" opacity=".10"/>');
+  g.push('<polyline points="'+pts.join(" ")+'" fill="none" stroke="#5a8f6b" stroke-width="2.4" stroke-linejoin="round"/>');
+  const passo=Math.ceil(s.length/8);
+  s.forEach((d,i)=>{if(i%passo&&i!==s.length-1)return;
+    g.push('<text x="'+x(i)+'" y="'+(mt+ih+16)+'" text-anchor="middle" fill="var(--ink-dim)" font-size="9.5" font-family="IBM Plex Mono">'+rotMes(d.mes)+'</text>');});
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g.join("")+'</svg>';
+  const ult=s[s.length-1].indice, ini=s[0].indice, pct=(ult/ini-1)*100;
+  const el=document.createElement("div");el.className="insight";
+  el.innerHTML="<b>Setor de plásticos</b><span>"+(pct>=0?"+":"")+fmt(pct,1)+"% no período</span><small>índice geral de resinas nos EUA, referência de tendência do setor</small>";
   box.appendChild(el);
 }
 
@@ -436,7 +511,7 @@ function insightGatilho(box){
 
 let girarLigado=true,girarPausa=0;
 document.getElementById("btnGirar").onclick=function(){girarLigado=!girarLigado;this.textContent="Girar: "+(girarLigado?"ligado":"pausado");};
-const CICLO=[["pp","custo"],["pp","gatilho"],["pe","custo"],["pe","gatilho"],["pp","comp"],["pp","brent"]];
+const CICLO=[["pp","custo"],["pp","gatilho"],["pe","custo"],["pvc","custo"],["pp","comp"],["pp","brent"]];
 let cicloI=0;
 setInterval(()=>{const t=performance.now();if(!girarLigado||t<girarPausa)return;
   cicloI=(cicloI+1)%CICLO.length;ativa=CICLO[cicloI][0];visao=CICLO[cicloI][1];render();},20000);
