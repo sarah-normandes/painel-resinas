@@ -110,16 +110,22 @@
     h1{font-size:24px}
   }
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-  .popup{position:fixed;top:16px;right:16px;z-index:20;min-width:210px;max-width:80vw;
-    background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);
-    border-radius:10px;padding:12px 14px;box-shadow:0 10px 30px rgba(20,25,35,.22);
-    transform:translateX(120%);transition:transform .35s cubic-bezier(.2,.8,.2,1);pointer-events:none}
-  .popup.show{transform:translateX(0)}
-  .popup.up{border-left-color:var(--up)} .popup.down{border-left-color:var(--down)}
+  .popup{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
+    background:rgba(10,14,20,0);opacity:0;pointer-events:none;
+    transition:opacity .3s ease, background .3s ease}
+  .popup.show{opacity:1;background:rgba(10,14,20,.55)}
+  .popup .box{background:var(--panel);border:1px solid var(--line);border-top:6px solid var(--accent);
+    border-radius:18px;padding:clamp(28px,5vh,56px) clamp(36px,6vw,90px);text-align:center;
+    box-shadow:0 24px 80px rgba(10,14,20,.5);transform:scale(.8);transition:transform .35s cubic-bezier(.2,.9,.2,1);
+    max-width:82vw}
+  .popup.show .box{transform:scale(1)}
+  .popup.up .box{border-top-color:var(--up)} .popup.down .box{border-top-color:var(--down)}
   .popup .t{font-family:"Barlow Condensed",sans-serif;font-weight:600;text-transform:uppercase;
-    letter-spacing:.06em;font-size:clamp(12px,1.5vh,17px);color:var(--ink)}
-  .popup .v{font-family:"IBM Plex Mono",monospace;font-size:clamp(16px,2.4vh,26px);font-weight:600;margin-top:3px}
-  .popup .s{font-size:clamp(10px,1.2vh,13px);color:var(--ink-dim);margin-top:2px;font-family:"IBM Plex Mono",monospace}
+    letter-spacing:.1em;font-size:clamp(22px,4.5vh,46px);color:var(--ink-dim)}
+  .popup .v{font-family:"IBM Plex Mono",monospace;font-size:clamp(48px,12vh,128px);font-weight:600;
+    margin-top:clamp(6px,1.4vh,16px);line-height:1}
+  .popup .s{font-size:clamp(18px,3.4vh,36px);color:var(--ink-dim);margin-top:clamp(8px,1.6vh,20px);
+    font-family:"IBM Plex Mono",monospace}
   .popup .v.up{color:var(--up)} .popup .v.down{color:var(--down)}
 </style>
 </head>
@@ -452,15 +458,15 @@ function aplicarDolarLive(){
   if(km) km.textContent="tempo real "+(DOLAR_LIVE.hora||"").slice(11,16);
 }
 const LIMITE_PCT=0.3;         // dispara o pop-up a partir de 0,3% de variação
-const POPUP_MS=9000;
+const POPUP_MS=12000;
 
 function mostrarPopup(valor, pct){
   const p=document.getElementById("popup"); if(!p) return;
   const sobe=pct>=0, dir=sobe?"up":"down", seta=sobe?"▲":"▼";
   p.className="popup show "+dir;
-  p.innerHTML='<div class="t">Dólar '+(sobe?"subiu":"caiu")+'</div>'+
+  p.innerHTML='<div class="box"><div class="t">Dólar '+(sobe?"subiu":"caiu")+'</div>'+
     '<div class="v '+dir+'">R$ '+fmt(valor,4)+'</div>'+
-    '<div class="s">'+seta+' '+fmt(Math.abs(pct),2)+'% desde a última leitura</div>';
+    '<div class="s">'+seta+' '+fmt(Math.abs(pct),2)+'% desde a última leitura</div></div>';
   clearTimeout(p._t); p._t=setTimeout(()=>{p.className="popup "+dir;}, POPUP_MS);
 }
 
