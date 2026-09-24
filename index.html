@@ -274,6 +274,7 @@ function renderKpis(){
   const u=DADOS.dolar[DADOS.dolar.length-1];
   document.getElementById("kDolar").textContent=u?"R$ "+fmt(u[1],4):"s/d";
   document.getElementById("kDolarMeta").textContent=u?"em "+brDate(u[0]).slice(0,5):"R$/US$";
+  aplicarDolarLive();
 }
 function delta(a,b){const p=(a/b-1)*100;return ' <span class="'+(p>=0?"pos":"neg")+'">'+(p>=0?"▲":"▼")+" "+fmt(Math.abs(p),1)+"%</span>";}
 function renderTabela(){
