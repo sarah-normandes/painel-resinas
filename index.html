@@ -191,8 +191,6 @@
       <h2>Análise
         <span class="h2tools">
           <select id="selVisao">
-            <option value="brent">Brent diário</option>
-            <option value="gatilho">Brent x resina</option>
             <option value="custo">Custo estimado</option>
             <option value="comp">Comparar resinas</option>
           </select>
@@ -215,10 +213,10 @@ window.addEventListener("error",function(e){var el=document.getElementById("stat
    Dólar diário (FRED DEXBZUS, R$/US$).
    Resinas: âncora Baird mar/26 + trajetória ABIPLAST (preço USD/t × câmbio). */
 const LB_T=2204.62;
-const ANCORA={pp:0.62*LB_T, pe:0.67*LB_T, pvc:0.58*LB_T};  // PVC: âncora estimada, faixa próxima ao PP
+const ANCORA={pp:0.62*LB_T, abs:0.95*LB_T, pvc:0.58*LB_T};  // PVC e ABS: âncoras estimadas (Baird p/ PP; ABS ~ resina de engenharia, mais cara)
 const TRAJ={
   pp:{"2026-01":0.82,"2026-02":0.86,"2026-03":1.00,"2026-04":1.28,"2026-05":1.42,"2026-06":1.40,"2026-07":1.38,"2026-08":1.39},
-  pe:{"2026-01":0.80,"2026-02":0.84,"2026-03":1.00,"2026-04":1.33,"2026-05":1.53,"2026-06":1.52,"2026-07":1.49,"2026-08":1.50},
+  abs:{"2026-01":0.86,"2026-02":0.90,"2026-03":1.00,"2026-04":1.22,"2026-05":1.35,"2026-06":1.33,"2026-07":1.31,"2026-08":1.32},
   pvc:{"2026-01":0.84,"2026-02":0.88,"2026-03":1.00,"2026-04":1.45,"2026-05":1.62,"2026-06":1.58,"2026-07":1.55,"2026-08":1.56}
 };
 const CAMBIO_MES={"2026-01":5.35,"2026-02":5.20,"2026-03":5.24,"2026-04":4.99,"2026-05":4.99,"2026-06":5.13,"2026-07":5.09,"2026-08":5.16};
@@ -257,10 +255,10 @@ const rotMes=m=>{const[a,x]=m.split("-");return NOMES[+x-1]+"/"+a.slice(2);};
 const brDate=iso=>iso.split("-").reverse().join("/");
 function setStatus(t,k){document.getElementById("status").innerHTML='<span class="dot '+(k||"")+'"></span>'+t;}
 
-const NOME_RESINA={pp:"Polipropileno", pe:"Polietileno", pvc:"PVC"};
+const NOME_RESINA={pp:"Polipropileno", abs:"ABS", pvc:"PVC"};
 function montarSemente(){
   const resinas={};
-  for(const r of ["pp","pe","pvc"]){
+  for(const r of ["pp","abs","pvc"]){
     const meses=Object.keys(TRAJ[r]).sort();
     resinas[r]={nome:NOME_RESINA[r],
       dados:meses.map(m=>{const usdT=ANCORA[r]*TRAJ[r][m],cambio=CAMBIO_MES[m];
@@ -284,9 +282,11 @@ async function buscar(){
 function def(){return DADOS.resinas[ativa] || DADOS.resinas.pp;}
 
 const GATILHO={gBrent:{serie:"brent", nome:"Brent", unid:"US$/barril", casas:2, cor:"var(--brent)",
-    txt:"petróleo, matéria-prima de PP e PE e parte do PVC"},
+    txt:"petróleo, matéria-prima de PP e PE e parte do PVC",
+    sobre:"O Brent é a referência mundial do petróleo. Ele vira nafta, que vira eteno e propileno, base de PP e PE. Quando o petróleo sobe, o reajuste das resinas costuma vir semanas depois."},
   gGas:{serie:"gas", nome:"Gás natural", unid:"US$/MMBtu", casas:2, cor:"#3f7d9c",
-    txt:"gás, energia da produção de cloro e insumo do eteno, gatilho-chave do PVC"}};
+    txt:"gás natural, gatilho específico do PVC",
+    sobre:"Preço de referência Henry Hub (gás dos EUA). Entra no PVC por dois caminhos: como energia da produção de cloro, que é eletrointensiva, e como matéria-prima do eteno. O que move o gás é sobretudo o clima, os estoques e a exportação de gás liquefeito, uma dinâmica própria, diferente da geopolítica do petróleo."}};
 const ehGatilho=()=>!!GATILHO[ativa];
 let resinaAnterior="pvc";  // resina sobreposta no gráfico do gatilho
 
@@ -320,8 +320,8 @@ function renderResinas(){
   }));
   // fileira de resinas
   const box=document.getElementById("resinas");
-  const nomes={pvc:"PVC", pp:"Polipropileno", pe:"Polietileno", setor:"Setor de plásticos"};
-  box.innerHTML=["pvc","pp","pe","setor"].map(k=>'<button data-k="'+k+'" class="'+(k===ativa?"on":"")+'">'+nomes[k]+'</button>').join("");
+  const nomes={pvc:"PVC", pp:"Polipropileno", abs:"ABS", setor:"Setor de plásticos"};
+  box.innerHTML=["pvc","pp","abs","setor"].map(k=>'<button data-k="'+k+'" class="'+(k===ativa?"on":"")+'">'+nomes[k]+'</button>').join("");
   box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
     ativa=b.dataset.k;
     if(ativa==="setor") visao="setor"; else if(visao==="setor") visao="custo";
@@ -365,7 +365,8 @@ function chartGatilhoSobreposto(box,W,H){
   if(b.length<2){box.innerHTML='<div class="empty">Sem série do gatilho.</div>';return;}
   const b0=b[0][1], bn=b.map(d=>[d[0], d[1]/b0*100]);
   document.getElementById("chartLegend").innerHTML='<i style="background:'+g.cor+'"></i>'+g.nome+
-    ' &nbsp;&nbsp;<i style="background:var(--accent)"></i>'+(r?r.nome:"resina")+' &nbsp; (base 100, o gatilho antecede a resina)';
+    ' &nbsp;&nbsp;<i style="background:var(--accent)"></i>'+(r?r.nome:"resina")+' &nbsp; (base 100, o gatilho antecede a resina)'+
+    '<br><span style="font-size:.92em;opacity:.85">'+g.sobre+'</span>';
   const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
   const rn=rd.length?rd.map(d=>({mes:d.mes, idx:d.brlT/rd[0].brlT*100})):[];
   const todos=[...bn.map(d=>d[1]),...rn.map(d=>d.idx)];
@@ -454,8 +455,6 @@ function renderChart(){
   if(ehGatilho()) return chartGatilhoSobreposto(box,W,H);
   if(visao==="custo") return chartCusto(box,W,H);
   if(visao==="comp")  return chartComp(box,W,H);
-  if(visao==="gatilho") return chartGatilho(box,W,H);
-  if(visao==="gas") return chartGas(box,W,H);
   if(visao==="setor") return chartSetor(box,W,H);
   return chartBrent(box,W,H);
 }
@@ -530,23 +529,23 @@ function chartComp(box,W,H){
   // PP, PE e PVC em base 100 no primeiro mês
   const cores={pp:"var(--accent)", pe:"var(--usd)", pvc:"var(--pvc)"};
   const series={};let refLen=0;
-  for(const k of ["pp","pe","pvc"]){const d=DADOS.resinas[k].dados;const base=d[0].brlT;
+  for(const k of ["pp","abs","pvc"]){const d=DADOS.resinas[k].dados;const base=d[0].brlT;
     series[k]=d.map(p=>({mes:p.mes,idx:p.brlT/base*100}));refLen=Math.max(refLen,d.length);}
-  document.getElementById("chartLegend").innerHTML='<i style="background:var(--accent)"></i>PP &nbsp;<i style="background:var(--usd)"></i>PE &nbsp;<i style="background:var(--pvc)"></i>PVC &nbsp; (base 100 no início, quem subiu mais)';
+  document.getElementById("chartLegend").innerHTML='<i style="background:var(--accent)"></i>PP &nbsp;<i style="background:var(--usd)"></i>ABS &nbsp;<i style="background:var(--pvc)"></i>PVC &nbsp; (base 100 no início, quem subiu mais)';
   const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
-  const todos=[...series.pp,...series.pe,...series.pvc].map(p=>p.idx);
+  const todos=[...series.pp,...series.abs,...series.pvc].map(p=>p.idx);
   const mx=Math.max(...todos),mn=Math.min(...todos),pad=(mx-mn||1)*.12,hi=mx+pad,lo=mn-pad;
   const x=i=>ml+iw*i/(refLen-1),y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
   const g=[]; eixos(g,W,H,ml,mr,mt,mb,hi,lo,0);
   g.push('<line x1="'+ml+'" y1="'+y(100)+'" x2="'+(W-mr)+'" y2="'+y(100)+'" stroke="var(--ink-dim)" stroke-dasharray="2 4" opacity=".6"/>');
-  for(const k of ["pp","pe","pvc"]) g.push('<polyline points="'+series[k].map((p,i)=>x(i)+","+y(p.idx)).join(" ")+'" fill="none" stroke="'+cores[k]+'" stroke-width="2.4" stroke-linejoin="round"/>');
+  for(const k of ["pp","abs","pvc"]) g.push('<polyline points="'+series[k].map((p,i)=>x(i)+","+y(p.idx)).join(" ")+'" fill="none" stroke="'+cores[k]+'" stroke-width="2.4" stroke-linejoin="round"/>');
   const passo=Math.ceil(refLen/8);
   series.pp.forEach((p,i)=>{if(i%passo&&i!==refLen-1)return;
     g.push('<text x="'+x(i)+'" y="'+(mt+ih+16)+'" text-anchor="middle" fill="var(--ink-dim)" font-size="9.5" font-family="IBM Plex Mono">'+rotMes(p.mes)+'</text>');});
   box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g.join("")+'</svg>';
-  const fin={pp:series.pp[series.pp.length-1].idx, pe:series.pe[series.pe.length-1].idx, pvc:series.pvc[series.pvc.length-1].idx};
+  const fin={pp:series.pp[series.pp.length-1].idx, abs:series.abs[series.abs.length-1].idx, pvc:series.pvc[series.pvc.length-1].idx};
   const ordenado=Object.entries(fin).sort((a,b)=>b[1]-a[1]);
-  const rot={pp:"PP",pe:"PE",pvc:"PVC"};
+  const rot={pp:"PP",abs:"ABS",pvc:"PVC"};
   const lider=rot[ordenado[0][0]];
   const el=document.createElement("div");el.className="insight";
   el.innerHTML="<b>Quem subiu mais</b><span>"+lider+" lidera, +"+fmt(ordenado[0][1]-100,1)+"% no período</span><small>"+
@@ -574,47 +573,6 @@ function chartSetor(box,W,H){
   const el=document.createElement("div");el.className="insight";
   el.innerHTML="<b>Setor de plásticos</b><span>"+(pct>=0?"+":"")+fmt(pct,1)+"% no período</span><small>índice geral de resinas nos EUA, referência de tendência do setor</small>";
   box.appendChild(el);
-}
-
-function chartGatilho(box,W,H){
-  // Brent (diário) e custo da resina (mensal) na MESMA escala normalizada base 100
-  const b=DADOS.brent; const r=def().dados;
-  if(b.length<2||r.length<2){box.innerHTML='<div class="empty">Sem série.</div>';return;}
-  const b0=b[0][1], bn=b.map(d=>[d[0], d[1]/b0*100]);
-  const r0=r[0].brlT, rn=r.map(d=>({mes:d.mes, idx:d.brlT/r0*100}));
-  document.getElementById("chartLegend").innerHTML='<i style="background:var(--brent)"></i>Brent &nbsp;&nbsp;<i style="background:var(--accent)"></i>'+def().nome+' &nbsp; (ambos base 100, o petróleo puxa a resina)';
-  const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
-  const todos=[...bn.map(d=>d[1]),...rn.map(d=>d.idx)];
-  const mx=Math.max(...todos),mn=Math.min(...todos),pad=(mx-mn||1)*.12,hi=mx+pad,lo=mn-pad;
-  // eixo x por data: mapeia ambos ao intervalo de dias de 2026
-  const d0=new Date(bn[0][0]).getTime(), d1=new Date(bn[bn.length-1][0]).getTime();
-  const xt=t=>ml+iw*(t-d0)/(d1-d0||1), y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
-  const g=[]; eixos(g,W,H,ml,mr,mt,mb,hi,lo,0);
-  g.push('<polyline points="'+bn.map(d=>xt(new Date(d[0]).getTime())+","+y(d[1])).join(" ")+'" fill="none" stroke="var(--brent)" stroke-width="2" stroke-linejoin="round"/>');
-  g.push('<polyline points="'+rn.map(d=>xt(new Date(d.mes+"-15").getTime())+","+y(d.idx)).join(" ")+'" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round"/>');
-  rn.forEach(d=>g.push('<circle cx="'+xt(new Date(d.mes+"-15").getTime())+'" cy="'+y(d.idx)+'" r="3.2" fill="var(--panel)" stroke="var(--accent)" stroke-width="2"/>'));
-  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+g.join("")+'</svg>';
-  insightGatilho(box);
-}
-
-function chartGas(box,W,H){
-  // Gás natural Henry Hub (diário) e custo da resina (mensal), base 100, gatilho do PVC
-  const g_=DADOS.gas||[]; const r=def().dados;
-  if(g_.length<2||r.length<2){box.innerHTML='<div class="empty">Sem série de gás.</div>';return;}
-  const g0=g_[0][1], gn=g_.map(d=>[d[0], d[1]/g0*100]);
-  const r0=r[0].brlT, rn=r.map(d=>({mes:d.mes, idx:d.brlT/r0*100}));
-  document.getElementById("chartLegend").innerHTML='<i style="background:#5a8f6b"></i>Gás natural &nbsp;&nbsp;<i style="background:var(--pvc)"></i>'+def().nome+' &nbsp; (base 100, gás pesa no eteno e na energia do cloro)';
-  const ml=54,mr=18,mt=20,mb=46,iw=W-ml-mr,ih=H-mt-mb;
-  const todos=[...gn.map(d=>d[1]),...rn.map(d=>d.idx)];
-  const mx=Math.max(...todos),mn=Math.min(...todos),pad=(mx-mn||1)*.12,hi=mx+pad,lo=mn-pad;
-  const d0=new Date(gn[0][0]).getTime(), d1=new Date(gn[gn.length-1][0]).getTime();
-  const xt=t=>ml+iw*(t-d0)/(d1-d0||1), y=v=>mt+ih-(v-lo)/(hi-lo)*ih;
-  const gg=[]; eixos(gg,W,H,ml,mr,mt,mb,hi,lo,0);
-  gg.push('<polyline points="'+gn.map(d=>xt(new Date(d[0]).getTime())+","+y(d[1])).join(" ")+'" fill="none" stroke="#5a8f6b" stroke-width="2" stroke-linejoin="round"/>');
-  gg.push('<polyline points="'+rn.map(d=>xt(new Date(d.mes+"-15").getTime())+","+y(d.idx)).join(" ")+'" fill="none" stroke="var(--pvc)" stroke-width="2.6" stroke-linejoin="round"/>');
-  rn.forEach(d=>gg.push('<circle cx="'+xt(new Date(d.mes+"-15").getTime())+'" cy="'+y(d.idx)+'" r="3.2" fill="var(--panel)" stroke="var(--pvc)" stroke-width="2"/>'));
-  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+gg.join("")+'</svg>';
-  insightGas(box);
 }
 
 function insightGas(box){
@@ -648,7 +606,7 @@ function insightGatilho(box){
 
 let girarLigado=true,girarPausa=0;
 document.getElementById("btnGirar").onclick=function(){girarLigado=!girarLigado;this.textContent="Girar: "+(girarLigado?"ligado":"pausado");};
-const CICLO=[["pp","custo"],["pp","gatilho"],["pe","custo"],["pvc","custo"],["pvc","gas"],["pp","comp"],["pp","brent"]];
+const CICLO=[["pp","custo"],["pvc","custo"],["abs","custo"],["pp","comp"],["pp","brent"]];
 let cicloI=0;
 setInterval(()=>{const t=performance.now();if(!girarLigado||t<girarPausa)return;
   cicloI=(cicloI+1)%CICLO.length;ativa=CICLO[cicloI][0];visao=CICLO[cicloI][1];render();},20000);
@@ -702,7 +660,13 @@ setInterval(lerDolarLive, 15*60000);   // a cada 15 minutos
 montarSemente();render();
 setStatus("Dados de semente reais (Baird+ABIPLAST / Brent FRED). Buscando atualização.","warn");
 (async()=>{const j=await buscar();
-  if(j){DADOS=j;render();setStatus("Sincronizado via servidor. Brent e dólar diários (FRED); resina mensal estimada.","");}
+  if(j){
+    // se a API (versão antiga) não trouxer gás ou agregado, mantém a semente para não zerar
+    if(!j.gas || !j.gas.length) j.gas = GAS_SEED.slice();
+    if(!j.agregado || !j.agregado.length) j.agregado = Object.keys(AGREGADO_SEED).sort().map(m=>({mes:m,indice:AGREGADO_SEED[m]}));
+    DADOS=j; render();
+    setStatus("Sincronizado via servidor. Brent, gás e dólar diários (FRED); resina mensal estimada.","");
+  }
   else{setStatus("Usando semente. Configure FRED_API_KEY no Cloudflare para Brent e dólar diários automáticos.","warn");}})();
 </script>
 </body>
