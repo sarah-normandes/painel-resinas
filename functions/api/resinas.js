@@ -7,14 +7,14 @@ const FRED = "https://api.stlouisfed.org/fred/series/observations";
 const LB_POR_T = 2204.62;
 
 // âncora real março/2026 (relatório Baird, US$/libra -> US$/t)
-const ANCORA_MAR = { pp: 0.62 * LB_POR_T, pe: 0.67 * LB_POR_T, pvc: 0.58 * LB_POR_T };
+const ANCORA_MAR = { pp: 0.62 * LB_POR_T, abs: 0.95 * LB_POR_T, pvc: 0.58 * LB_POR_T };
 // trajetória relativa (mar=1.00), dos percentuais oficiais ABIPLAST/EconoPlast
 const TRAJ = {
   pp: {"2026-01":0.82,"2026-02":0.86,"2026-03":1.00,"2026-04":1.28,"2026-05":1.42,"2026-06":1.40,"2026-07":1.38,"2026-08":1.39},
-  pe: {"2026-01":0.80,"2026-02":0.84,"2026-03":1.00,"2026-04":1.33,"2026-05":1.53,"2026-06":1.52,"2026-07":1.49,"2026-08":1.50},
+  abs:{"2026-01":0.86,"2026-02":0.90,"2026-03":1.00,"2026-04":1.22,"2026-05":1.35,"2026-06":1.33,"2026-07":1.31,"2026-08":1.32},
   pvc:{"2026-01":0.84,"2026-02":0.88,"2026-03":1.00,"2026-04":1.45,"2026-05":1.62,"2026-06":1.58,"2026-07":1.55,"2026-08":1.56}
 };
-const NOME_RES = { pp:"Polipropileno", pe:"Polietileno", pvc:"PVC" };
+const NOME_RES = { pp:"Polipropileno", abs:"ABS", pvc:"PVC" };
 
 async function serie(id, chave, desde){
   const u = FRED+"?series_id="+id+"&api_key="+chave+"&file_type=json&observation_start="+desde+"&sort_order=asc";
@@ -46,6 +46,7 @@ export async function onRequest(context){
   try{
     // diários reais: Brent (US$/barril) e dólar (R$/US$)
     const brent = await serie("DCOILBRENTEU", chave, "2026-01-01");
+    let gas=[]; try{ gas = await serie("DHHNGSP", chave, "2026-01-01"); }catch(e){ gas=[]; }  // Henry Hub US$/MMBtu diário
     const usd   = await serie("DEXBZUS",      chave, "2026-01-01");  // R$/US$ diário (Fed)
     const cam   = cambioMensal(usd);
     const usdHoje = usd.length ? usd[usd.length-1][1] : null;
@@ -58,7 +59,7 @@ export async function onRequest(context){
 
     // resinas mensais em USD/t e BRL/t (lógica LME)
     const resinas = {};
-    for(const r of ["pp","pe","pvc"]){
+    for(const r of ["pp","abs","pvc"]){
       const meses = Object.keys(TRAJ[r]).sort();
       resinas[r] = {
         nome: NOME_RES[r],
@@ -75,6 +76,7 @@ export async function onRequest(context){
       nota: "R$/t = US$/t × câmbio, mesma lógica do painel LME. Preço de resina é estimativa reconstruída; Brent e dólar são diários e oficiais.",
       atualizado: new Date().toISOString(),
       brent: brent.slice(-260),
+      gas: gas.slice(-260),
       dolar: usd.slice(-260),
       agregado,
       usdHoje,
